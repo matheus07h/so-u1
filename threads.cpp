@@ -4,10 +4,10 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
-#include <mutex>
+// #include <mutex>
+// #include <utility>
 #include <string>
 #include <thread>
-#include <utility>
 #include <vector>
 
 using namespace std;
@@ -46,6 +46,7 @@ int main(int argc, char *argv[]) {
   }
 
   int total_elements = n1 * m2;
+  cout << total_elements << " elementos na matriz resultante.\n";
   if (p <= 0) {
     cerr << "Erro: P deve ser maior que zero.\n";
     return 1;
@@ -54,16 +55,11 @@ int main(int argc, char *argv[]) {
     p = total_elements;
   }
 
-  int num_threads = total_elements / p;
-  if (num_threads <= 0)
-    num_threads = 1;
-  if (num_threads > total_elements)
-    num_threads = total_elements;
+  int num_threads = (total_elements + p - 1) / p;
   cout << num_threads << " threads disponíveis.\n";
-  int block_size = (total_elements + num_threads - 1) / num_threads;
 
   // Vetor para armazenar os resultados (opcional, pode ser removido)
-  vector<vector<int>> resultado(n1, vector<int>(m2, 0));
+  // vector<vector<int>> resultado(n1, vector<int>(m2, 0));
 
   auto compute = [&](int start_idx, int end_idx, int thread_id) {
     auto t0 = chrono::steady_clock::now();
@@ -76,7 +72,7 @@ int main(int argc, char *argv[]) {
       for (int k = 0; k < m1; ++k) {
         val += matriz1[i][k] * matriz2[k][j];
       }
-      resultado[i][j] = val;
+      // resultado[i][j] = val;
       fout << "c" << setfill('0') << setw(8) << i << setw(4) << j << " " << val
            << "\n";
     }
@@ -88,9 +84,11 @@ int main(int argc, char *argv[]) {
   auto total_t0 = chrono::steady_clock::now();
   vector<thread> threads;
   for (int t = 0; t < num_threads; ++t) {
-    int start = t * block_size;
-    int end = min(start + block_size, total_elements);
-    threads.emplace_back(compute, start, end);
+    int start = t * (total_elements / num_threads) +
+                min(t, total_elements % num_threads);
+    int end = start + (total_elements / num_threads) +
+              (t < (total_elements % num_threads) ? 1 : 0);
+    threads.emplace_back(compute, start, end, t);
   }
   for (auto &th : threads)
     th.join();
