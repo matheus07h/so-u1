@@ -18,12 +18,10 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  // Leitura dos argumentos
   string file1 = argv[1];
   string file2 = argv[2];
   int p = stoi(argv[3]);
 
-  // Leitura da matriz 1
   ifstream fin1(file1);
   int n1, m1;
   fin1 >> n1 >> m1;
@@ -33,7 +31,6 @@ int main(int argc, char *argv[]) {
       fin1 >> matriz1[i][j];
   fin1.close();
 
-  // Leitura da matriz 2
   ifstream fin2(file2);
   int n2, m2;
   fin2 >> n2 >> m2;
@@ -48,49 +45,55 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  vector<vector<int>> resultado(n1, vector<int>(m2, 0));
-  mutex file_mutex;
   int total_elements = n1 * m2;
-  int num_parts = (total_elements + p - 1) / p;
+  if (p <= 0) {
+    cerr << "Erro: P deve ser maior que zero.\n";
+    return 1;
+  }
+  if (p > total_elements) {
+    p = total_elements;
+  }
 
-  auto compute_and_save = [&](int part_idx, int start_idx, int end_idx) {
+  int num_threads = total_elements / p;
+  if (num_threads <= 0)
+    num_threads = 1;
+  if (num_threads > total_elements)
+    num_threads = total_elements;
+  cout << num_threads << " threads disponíveis.\n";
+  int block_size = (total_elements + num_threads - 1) / num_threads;
+
+  // Vetor para armazenar os resultados (opcional, pode ser removido)
+  vector<vector<int>> resultado(n1, vector<int>(m2, 0));
+
+  auto compute = [&](int start_idx, int end_idx, int thread_id) {
     auto t0 = chrono::steady_clock::now();
-    vector<pair<int, int>> positions;
+    ofstream fout("data/threads/resultado_partes_" + to_string(thread_id) +
+                  ".txt");
     for (int idx = start_idx; idx < end_idx; ++idx) {
       int i = idx / m2;
       int j = idx % m2;
-      resultado[i][j] = 0;
+      int val = 0;
       for (int k = 0; k < m1; ++k) {
-        resultado[i][j] += matriz1[i][k] * matriz2[k][j];
+        val += matriz1[i][k] * matriz2[k][j];
       }
-      positions.emplace_back(i, j);
+      resultado[i][j] = val;
+      fout << "c" << setfill('0') << setw(8) << i << setw(4) << j << " " << val
+           << "\n";
     }
     auto t1 = chrono::steady_clock::now();
-    long tempo = chrono::duration_cast<chrono::milliseconds>(t1 - t0).count();
-
-    string fname =
-        "data/threads/resultado_parte_" + to_string(part_idx) + ".txt";
-    lock_guard<mutex> lock(file_mutex);
-    ofstream fout(fname);
-    for (auto &pos : positions) {
-      int i = pos.first;
-      int j = pos.second;
-      fout << "c" << setfill('0') << setw(8) << i << setw(2) << j << " "
-           << resultado[i][j] << "\n";
-    }
-    fout << "Tempo(ms): " << tempo << "\n";
-    fout.close();
+    long ms = chrono::duration_cast<chrono::milliseconds>(t1 - t0).count();
+    fout << ms << "\n";
   };
 
   auto total_t0 = chrono::steady_clock::now();
   vector<thread> threads;
-  for (int part = 0; part < num_parts; ++part) {
-    int start = part * p;
-    int end = min(start + p, total_elements);
-    threads.emplace_back(compute_and_save, part, start, end);
+  for (int t = 0; t < num_threads; ++t) {
+    int start = t * block_size;
+    int end = min(start + block_size, total_elements);
+    threads.emplace_back(compute, start, end);
   }
-  for (auto &t : threads)
-    t.join();
+  for (auto &th : threads)
+    th.join();
 
   auto total_t1 = chrono::steady_clock::now();
   long total_ms =

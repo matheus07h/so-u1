@@ -47,6 +47,7 @@ int main(int argc, char *argv[]) {
 
   int total_elements = n1 * m2;
   int num_parts = (total_elements + p - 1) / p;
+  cout << num_parts << " partes\n";
 
   for (int part = 0; part < num_parts; ++part) {
     int start = part * p;
