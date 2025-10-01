@@ -78,6 +78,6 @@ int main(int argc, char *argv[]) {
 
   auto t1 = chrono::steady_clock::now();
   long ms = chrono::duration_cast<chrono::milliseconds>(t1 - t0).count();
-  cout << "Execution: " << ms << " ms" << endl;
+  cout << "Tempo total: " << ms << " ms" << endl;
   return 0;
 }
